@@ -94,12 +94,6 @@ Namespace.prototype.run = function run(fn) {
     fn(context);
     return context;
   }
-  catch (exception) {
-    if (exception) {
-      exception[ERROR_SYMBOL] = context;
-    }
-    throw exception;
-  }
   finally {
     if (DEBUG_CLS_HOOKED) {
       debug2(' AFTER RUN: ' + this.name + ' uid:' + currentUid + ' len:' + this._set.length + ' ' +
@@ -171,12 +165,6 @@ Namespace.prototype.bind = function bindFactory(fn, context) {
     self.enter(context);
     try {
       return fn.apply(this, arguments);
-    }
-    catch (exception) {
-      if (exception) {
-        exception[ERROR_SYMBOL] = context;
-      }
-      throw exception;
     }
     finally {
       self.exit(context);

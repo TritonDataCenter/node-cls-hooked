@@ -35,30 +35,6 @@ test("continuation-local storage glue with a throw in the continuation chain",
   });
 });
 
-test("synchronous throw attaches the context", function (t) {
-  t.plan(3);
-
-  var namespace = cls.createNamespace('cls@synchronous');
-  namespace.run(function () {
-    namespace.set('value', 'transaction clear');
-    try {
-      namespace.run(function () {
-        namespace.set('value', 'transaction set');
-        throw new Error('cls@synchronous explosion');
-      });
-    }
-    catch (e) {
-      t.ok(namespace.fromException(e), "context was attached to error");
-      t.equal(namespace.fromException(e)['value'], 'transaction set',
-              "found the inner value");
-    }
-
-    t.equal(namespace.get('value'), 'transaction clear', "everything was reset");
-  });
-
-  cls.destroyNamespace('cls@synchronous');
-});
-
 test("synchronous throw checks if error exists", function (t) {
   t.plan(2);
 
@@ -82,60 +58,3 @@ test("synchronous throw checks if error exists", function (t) {
   cls.destroyNamespace('cls@synchronous-null-error');
 });
 
-test("throw in process.nextTick attaches the context", function (t) {
-  t.plan(3);
-
-  var namespace = cls.createNamespace('cls@nexttick2');
-
-  var d = domain.create();
-  d.once('error', function (e) {
-    t.ok(namespace.fromException(e), "context was attached to error");
-    t.equal(namespace.fromException(e)['value'], 'transaction set',
-            "found the inner value");
-
-    cls.destroyNamespace('cls@nexttick2');
-  });
-
-  namespace.run(function () {
-    namespace.set('value', 'transaction clear');
-
-    // tap is only trying to help
-    process.nextTick(d.bind(function () {
-      namespace.run(function () {
-        namespace.set('value', 'transaction set');
-        throw new Error("cls@nexttick2 explosion");
-      });
-    }));
-
-    t.equal(namespace.get('value'), 'transaction clear', "everything was reset");
-  });
-});
-
-test("throw in setTimeout attaches the context", function (t) {
-  t.plan(3);
-
-  var namespace = cls.createNamespace('cls@nexttick3');
-  var d = domain.create();
-
-  d.once('error', function (e) {
-    t.ok(namespace.fromException(e), "context was attached to error");
-    t.equal(namespace.fromException(e)['value'], 'transaction set',
-            "found the inner value");
-
-    cls.destroyNamespace('cls@nexttick3');
-  });
-
-  namespace.run(function () {
-    namespace.set('value', 'transaction clear');
-
-    // tap is only trying to help
-    setTimeout(d.bind(function () {
-      namespace.run(function () {
-        namespace.set('value', 'transaction set');
-        throw new Error("cls@nexttick3 explosion");
-      });
-    }));
-
-    t.equal(namespace.get('value'), 'transaction clear', "everything was reset");
-  });
-});

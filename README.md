@@ -4,7 +4,7 @@
 
 # Continuation-Local Storage ( Hooked )
 
-### This is a fork of [CLS](https://github.com/othiym23/node-continuation-local-storage) using [AsyncWrap](https://github.com/nodejs/node-eps/blob/async-wrap-ep/XXX-asyncwrap-api.md) instead of [async-listener](https://github.com/othiym23/async-listener). ###
+### This is a fork of [cls-hooked](https://github.com/Jeff-Lewis/cls-hooked) which is more friendly to post-mortem debugging by not catching and re-throwing exceptions. [cls-hooked](https://github.com/Jeff-Lewis/cls-hooked) itself is a fork of [CLS](https://github.com/othiym23/node-continuation-local-storage) using [AsyncWrap](https://github.com/nodejs/node-eps/blob/async-wrap-ep/XXX-asyncwrap-api.md) instead of [async-listener](https://github.com/othiym23/async-listener). ###
 
 #### Thanks to [@trevnorris](https://github.com/trevnorris) for [AsyncWrap](https://github.com/nodejs/node-eps/blob/async-wrap-ep/XXX-asyncwrap-api.md) and all the async work in Node and [@AndreasMadsen](https://github.com/AndreasMadsen) for [async-hook](https://github.com/AndreasMadsen/async-hook). ###
 
