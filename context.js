@@ -4,18 +4,21 @@ const util = require('util');
 const assert = require('assert');
 const wrapEmitter = require('emitter-listener');
 const asyncHook = require('async-hook');
+const dtraceProvider = require('dtrace-provider');
 
 const CONTEXTS_SYMBOL = 'cls@contexts';
 const ERROR_SYMBOL = 'error@context';
 
 //const trace = [];
 
+const dtp = dtraceProvider.createDTraceProvider('cls-hooked');
 const invertedProviders = [];
 for (let key in asyncHook.providers) {
   invertedProviders[asyncHook.providers[key]] = key;
 }
 
 const DEBUG_CLS_HOOKED = process.env.DEBUG_CLS_HOOKED;
+const nsEnterProbe = dtp.addProbe('ns_enter', 'char *', 'int', 'int', 'json');
 
 let currentUid = -1;
 
@@ -174,6 +177,11 @@ Namespace.prototype.bind = function bindFactory(fn, context) {
 
 Namespace.prototype.enter = function enter(context) {
   assert.ok(context, 'context must be provided for entering');
+
+  nsEnterProbe.fire(function _nsEnterProbeFire() {
+      return [this.name, currentUid, this._set.length, context];
+  });
+
   if (DEBUG_CLS_HOOKED) {
     debug2('  ENTER ' + this.name + ' uid:' + currentUid + ' len:' + this._set.length + ' context: ' +
       util.inspect(context));
