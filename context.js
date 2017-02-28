@@ -11,14 +11,29 @@ const ERROR_SYMBOL = 'error@context';
 
 //const trace = [];
 
-const dtp = dtraceProvider.createDTraceProvider('cls-hooked');
+const dtp = dtraceProvider.createDTraceProvider('clshooked');
 const invertedProviders = [];
 for (let key in asyncHook.providers) {
   invertedProviders[asyncHook.providers[key]] = key;
 }
 
 const DEBUG_CLS_HOOKED = process.env.DEBUG_CLS_HOOKED;
-const nsEnterProbe = dtp.addProbe('ns_enter', 'char *', 'int', 'int', 'json');
+
+// DTrace probes
+
+// parentCtx, newCtx
+dtp.addProbe('create', 'json', 'json');
+// ns, uid, set_len, context
+dtp.addProbe('enter', 'char *', 'int', 'int', 'json');
+// ns, uid, set_len, context
+dtp.addProbe('exit', 'char *', 'int', 'int', 'json');
+// key, value, ns, uid, context
+dtp.addProbe('get', 'char *', 'json', 'char *', 'int', 'json');
+// key, value, ns, uid, context
+dtp.addProbe('set', 'char *', 'json', 'char *', 'int', 'json');
+// oldctx, newctx
+dtp.addProbe('switch', 'json', 'json');
+dtp.enable();
 
 let currentUid = -1;
 
@@ -41,9 +56,15 @@ function Namespace(name) {
 }
 
 Namespace.prototype.set = function set(key, value) {
+  var self = this;
+
   if (!this.active) {
     throw new Error('No context available. ns.run() or ns.bind() must be called first.');
   }
+
+  dtp.fire('set', function _nsSetProbeFire() {
+      return [key, value, self.name, currentUid, self.active];
+  });
 
   if (DEBUG_CLS_HOOKED) {
     debug2('    SETTING KEY:' + key + '=' + value + ' in ns:' + this.name + ' uid:' + currentUid + ' active:' +
@@ -54,6 +75,13 @@ Namespace.prototype.set = function set(key, value) {
 };
 
 Namespace.prototype.get = function get(key) {
+   var self = this;
+
+  dtp.fire('get', function _nsGetProbeFire() {
+      var value = (self.active ? self.active[key] : undefined);
+      return [key, value, self.name, currentUid, self.active];
+  });
+
   if (!this.active) {
     if (DEBUG_CLS_HOOKED) {
       debug2('    GETTING KEY:' + key + '=undefined' + ' ' + this.name + ' uid:' + currentUid + ' active:' +
@@ -69,6 +97,8 @@ Namespace.prototype.get = function get(key) {
 };
 
 Namespace.prototype.createContext = function createContext() {
+  var self = this;
+
   if (DEBUG_CLS_HOOKED) {
     debug2('   CREATING Context: ' + this.name + ' uid:' + currentUid + ' len:' + this._set.length + ' ' + ' active:' +
       util.inspect(this.active, true, 2, true));
@@ -77,6 +107,11 @@ Namespace.prototype.createContext = function createContext() {
   let context = Object.create(this.active ? this.active : Object.prototype);
   context._ns_name = this.name;
   context.id = currentUid;
+
+  dtp.fire('create', function _nsCreateProbeFire() {
+      // parentCtx, newCtx
+      return [self.active, context];
+  });
 
   if (DEBUG_CLS_HOOKED) {
     debug2('   CREATED Context: ' + this.name + ' uid:' + currentUid + ' len:' + this._set.length + ' ' + ' context:' +
@@ -176,10 +211,11 @@ Namespace.prototype.bind = function bindFactory(fn, context) {
 };
 
 Namespace.prototype.enter = function enter(context) {
+  var self = this;
   assert.ok(context, 'context must be provided for entering');
 
-  nsEnterProbe.fire(function _nsEnterProbeFire() {
-      return [this.name, currentUid, this._set.length, context];
+  dtp.fire('enter', function _nsEnterProbeFire() {
+      return [self.name, currentUid, self._set.length, context];
   });
 
   if (DEBUG_CLS_HOOKED) {
@@ -188,11 +224,23 @@ Namespace.prototype.enter = function enter(context) {
   }
 
   this._set.push(this.active);
+
+  dtp.fire('switch', function _switchProbeFire() {
+      // oldctx, newctx
+      return [self.active, context];
+  });
+
   this.active = context;
 };
 
 Namespace.prototype.exit = function exit(context) {
+  var self = this;
   assert.ok(context, 'context must be provided for exiting');
+
+  dtp.fire('exit', function _nsExitProbeFire() {
+      return [self.name, currentUid, self._set.length, context];
+  });
+
   if (DEBUG_CLS_HOOKED) {
     debug2('  EXIT ' + this.name + ' uid:' + currentUid + ' len:' + this._set.length + ' context: ' +
       util.inspect(context));
@@ -202,6 +250,12 @@ Namespace.prototype.exit = function exit(context) {
   if (this.active === context) {
     assert.ok(this._set.length, 'can\'t remove top context');
     this.active = this._set.pop();
+
+    dtp.fire('switch', function _switchProbeFire() {
+      // oldctx, newctx
+      return [context, self.active];
+    });
+
     return;
   }
 
