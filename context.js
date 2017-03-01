@@ -27,8 +27,14 @@ dtp.addProbe('create', 'json', 'json');
 dtp.addProbe('enter', 'char *', 'int', 'int', 'json');
 // ns, uid, set_len, context
 dtp.addProbe('exit', 'char *', 'int', 'int', 'json');
+// funcname, ns, uid, parentId, provider, activeCtx
+dtp.addProbe('init', 'char *', 'char *', 'int', 'int', 'char *', 'json');
 // key, value, ns, uid, context
 dtp.addProbe('get', 'char *', 'json', 'char *', 'int', 'json');
+// funcname, ns, uid, activeCtx
+dtp.addProbe('pre', 'char *', 'char *', 'int', 'json');
+// funcname, ns, uid, activeCtx
+dtp.addProbe('post', 'char *', 'char *', 'int', 'json');
 // key, value, ns, uid, context
 dtp.addProbe('set', 'char *', 'json', 'char *', 'int', 'json');
 // oldctx, newctx
@@ -351,6 +357,11 @@ function createNamespace(name) {
         namespace._contexts.set(currentUid, namespace.active);
       }
 
+      dtp.fire('init', function _initProbeFire() {
+        // funcname, ns, uid, parentId, provider, activeCtx
+        return [getFunctionName(handle), name, uid, parentUid, invertedProviders[provider], namespace.active];
+      });
+
       if (DEBUG_CLS_HOOKED) {
         debug2('INIT ' + name + ' uid:' + uid + ' parent:' + parentUid + ' provider:' + invertedProviders[provider]
           + ' active:' + util.inspect(namespace.active, true));
@@ -360,6 +371,12 @@ function createNamespace(name) {
     pre(uid, handle) {
       currentUid = uid;
       let context = namespace._contexts.get(uid);
+
+      dtp.fire('pre', function _initProbeFire() {
+        // funcname, ns, uid, parentId, provider, activeCtx
+        return [getFunctionName(handle), name, uid, context];
+      });
+
       if (context) {
         if (DEBUG_CLS_HOOKED) {
           debug2(' PRE ' + name + ' uid:' + uid + ' handle:' + getFunctionName(handle) + ' context:' +
@@ -376,6 +393,12 @@ function createNamespace(name) {
     post(uid, handle) {
       currentUid = uid;
       let context = namespace._contexts.get(uid);
+
+      dtp.fire('post', function _initProbeFire() {
+        // funcname, ns, uid, parentId, provider, activeCtx
+        return [getFunctionName(handle), name, uid, context];
+      });
+
       if (context) {
         if (DEBUG_CLS_HOOKED) {
           debug2(' POST ' + name + ' uid:' + uid + ' handle:' + getFunctionName(handle) + ' context:' +
