@@ -31,7 +31,7 @@
     "node": "^4.7 || ^6.9.2 || ^7.3"
   },
   "dependencies": {
-    "async-hook": "git+https://github.com/joshwilsdon/async-hook.git#rfd-35-cls",
+    "async-hook": "git+https://github.com/joyent/node-async-hook.git#rfd-35-cls",
     "dtrace-provider": "0.8.0",
     "emitter-listener": "^1.0.1"
   },
